@@ -217,6 +217,7 @@ create_gadget_parameter_set()
     param_declare_int(ps, "TreeGravOn", OPTIONAL, 1, "Enables tree gravity");
     param_declare_int(ps, "RadiationOn", OPTIONAL, 1, "Include radiation density in the background evolution.");
     param_declare_int(ps, "FastParticleType", OPTIONAL, 2, "Particles of this type will not decrease the timestep. Default neutrinos.");
+    param_declare_double(ps, "PairwiseActiveFraction", OPTIONAL, 0.01, "If the active fraction is less than this number, use a pairwise force instead of a tree.");
 
     param_declare_double(ps, "GravitySoftening", OPTIONAL, 1./30., "Softening for collisionless particles; units of mean separation of DM. ForceSoftening is 2.8 times this.");
     param_declare_double(ps, "GravitySofteningGas", OPTIONAL, 1./30., "Softening for collisional particles (Gas); units of mean separation of DM; 0 to use Hsml of last step. ");
@@ -438,6 +439,7 @@ void read_parameter_file(char *fname)
         All.DensityIndependentSphOn= param_get_int(ps, "DensityIndependentSphOn");
         All.TreeGravOn = param_get_int(ps, "TreeGravOn");
         All.FastParticleType = param_get_int(ps, "FastParticleType");
+        All.PairwiseActiveFraction = param_get_double(ps, "PairwiseActiveFraction");
         All.TimeLimitCPU = param_get_double(ps, "TimeLimitCPU");
         All.AutoSnapshotTime = param_get_double(ps, "AutoSnapshotTime");
         All.TimeBetweenSeedingSearch = param_get_double(ps, "TimeBetweenSeedingSearch");

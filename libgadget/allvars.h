@@ -164,6 +164,7 @@ extern struct global_data_all_processes
 
     int FastParticleType; /*!< flags a particle species to exclude timestep calculations.*/
     /* parameters determining output frequency */
+    double PairwiseActiveFraction; /* Fraction of particles active for which we do a pairwise computation instead of a tree*/
 
     int SnapshotFileCount;	/*!< number of snapshot that is written next */
     int InitSnapshotCount;  /*!< Number of first snapshot written this run*/
