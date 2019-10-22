@@ -695,13 +695,6 @@ add_particle_moment_to_node(struct NODE * pnode, int i)
     pnode->u.d.mass += (P[i].Mass);
     for(k=0; k<3; k++)
         pnode->u.d.s[k] += (P[i].Mass * P[i].Pos[k]);
-
-    if(P[i].Type == 0)
-    {
-        if(P[i].Hsml > pnode->u.d.hmax)
-            pnode->u.d.hmax = P[i].Hsml;
-    }
-
     force_adjust_node_softening(pnode, FORCE_SOFTENING(i), 0);
 }
 
@@ -878,8 +871,6 @@ force_update_node_recursive(int no, int sib, int level, const ForceTree * tree, 
         tree->Nodes[no].u.d.s[0] += (tree->Nodes[p].u.d.mass * tree->Nodes[p].u.d.s[0]);
         tree->Nodes[no].u.d.s[1] += (tree->Nodes[p].u.d.mass * tree->Nodes[p].u.d.s[1]);
         tree->Nodes[no].u.d.s[2] += (tree->Nodes[p].u.d.mass * tree->Nodes[p].u.d.s[2]);
-        if(tree->Nodes[p].u.d.hmax > tree->Nodes[no].u.d.hmax)
-            tree->Nodes[no].u.d.hmax = tree->Nodes[p].u.d.hmax;
 
         force_adjust_node_softening(&tree->Nodes[no], tree->Nodes[p].u.d.MaxSoftening, tree->Nodes[p].f.MixedSofteningsInNode);
     }
@@ -955,7 +946,6 @@ void force_exchange_pseudodata(ForceTree * tree, const DomainDecomp * ddecomp)
     {
         MyFloat s[3];
         MyFloat mass;
-        MyFloat hmax;
         struct {
             unsigned int MixedSofteningsInNode :1;
         };
@@ -979,7 +969,6 @@ void force_exchange_pseudodata(ForceTree * tree, const DomainDecomp * ddecomp)
         TopLeafMoments[i].s[1] = tree->Nodes[no].u.d.s[1];
         TopLeafMoments[i].s[2] = tree->Nodes[no].u.d.s[2];
         TopLeafMoments[i].mass = tree->Nodes[no].u.d.mass;
-        TopLeafMoments[i].hmax = tree->Nodes[no].u.d.hmax;
         TopLeafMoments[i].MaxSoftening = tree->Nodes[no].u.d.MaxSoftening;
         TopLeafMoments[i].MixedSofteningsInNode = tree->Nodes[no].f.MixedSofteningsInNode;
 
@@ -1024,7 +1013,6 @@ void force_exchange_pseudodata(ForceTree * tree, const DomainDecomp * ddecomp)
             tree->Nodes[no].u.d.s[1] = TopLeafMoments[i].s[1];
             tree->Nodes[no].u.d.s[2] = TopLeafMoments[i].s[2];
             tree->Nodes[no].u.d.mass = TopLeafMoments[i].mass;
-            tree->Nodes[no].u.d.hmax = TopLeafMoments[i].hmax;
             tree->Nodes[no].u.d.MaxSoftening = TopLeafMoments[i].MaxSoftening;
             tree->Nodes[no].f.MixedSofteningsInNode = TopLeafMoments[i].MixedSofteningsInNode;
          }
@@ -1039,14 +1027,12 @@ void force_exchange_pseudodata(ForceTree * tree, const DomainDecomp * ddecomp)
 void force_treeupdate_pseudos(int no, const ForceTree * tree)
 {
     int j, p;
-    MyFloat hmax;
     MyFloat s[3], mass;
 
     mass = 0;
     s[0] = 0;
     s[1] = 0;
     s[2] = 0;
-    hmax = 0;
 
     tree->Nodes[no].u.d.MaxSoftening = -1;
     tree->Nodes[no].f.MixedSofteningsInNode = 0;
@@ -1077,9 +1063,6 @@ void force_treeupdate_pseudos(int no, const ForceTree * tree)
         s[1] += (tree->Nodes[p].u.d.mass * tree->Nodes[p].u.d.s[1]);
         s[2] += (tree->Nodes[p].u.d.mass * tree->Nodes[p].u.d.s[2]);
 
-        if(tree->Nodes[p].u.d.hmax > hmax)
-            hmax = tree->Nodes[p].u.d.hmax;
-
         force_adjust_node_softening(&tree->Nodes[no], tree->Nodes[p].u.d.MaxSoftening, tree->Nodes[p].f.MixedSofteningsInNode);
 
         p = tree->Nodes[p].u.d.sibling;
@@ -1102,8 +1085,6 @@ void force_treeupdate_pseudos(int no, const ForceTree * tree)
     tree->Nodes[no].u.d.s[1] = s[1];
     tree->Nodes[no].u.d.s[2] = s[2];
     tree->Nodes[no].u.d.mass = mass;
-
-    tree->Nodes[no].u.d.hmax = hmax;
 }
 
 /*! This function updates the hmax-values in tree nodes that hold SPH
@@ -1113,7 +1094,7 @@ void force_treeupdate_pseudos(int no, const ForceTree * tree)
  *  out just before the hydrodynamical SPH forces are computed, i.e. after
  *  density().
  */
-void force_update_hmax(int * activeset, int size, ForceTree * tree, DomainDecomp * ddecomp)
+void force_update_hmax(ForceTree * tree, DomainDecomp * ddecomp)
 {
     int NTask, ThisTask, recvTask;
     int i, ta;
@@ -1124,20 +1105,19 @@ void force_update_hmax(int * activeset, int size, ForceTree * tree, DomainDecomp
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
 
-    for(i = 0; i < size; i++)
+    /* We do this for all particles because hmax is not set during tree build any more.*/
+    for(i = 0; i < PartManager->NumPart; i++)
     {
-        const int p_i = activeset ? activeset[i] : i;
-
-        if(P[p_i].Type != 0)
+        if(P[i].Type != 0)
             continue;
 
-        int no = tree->Father[p_i];
+        int no = tree->Father[i];
 
         while(no >= 0)
         {
-            if(P[p_i].Hsml <= tree->Nodes[no].u.d.hmax)
+            if(P[i].Hsml <= tree->Nodes[no].u.d.hmax)
                 break;
-            tree->Nodes[no].u.d.hmax = P[p_i].Hsml;
+            tree->Nodes[no].u.d.hmax = P[i].Hsml;
             no = tree->Nodes[no].father;
         }
     }
@@ -1212,6 +1192,8 @@ ForceTree force_treeallocate(int maxnodes, int maxpart, DomainDecomp * ddecomp)
     tb.numnodes = maxnodes;
     tb.Nodes = tb.Nodes_base - maxpart;
     tb.tree_allocated_flag = 1;
+    tb.moments_computed_flag = 0;
+    tb.hmax_computed_flag = 0;
     tb.NTopLeaves = ddecomp->NTopLeaves;
     tb.TopLeaves = ddecomp->TopLeaves;
 

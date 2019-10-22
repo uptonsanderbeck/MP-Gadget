@@ -105,7 +105,7 @@ void init_forcetree_params(const int FastParticleType, const double * GravitySof
 int force_tree_allocated(const ForceTree * tt);
 
 /* This function propagates changed SPH smoothing lengths up the tree*/
-void force_update_hmax(int * activeset, int size, ForceTree * tt, DomainDecomp * ddecomp);
+void force_update_hmax(ForceTree * tt, DomainDecomp * ddecomp);
 
 /* This is the main constructor for the tree structure.
    The tree shall be either zero-filled, so that force_tree_allocated = 0, or a valid ForceTree.

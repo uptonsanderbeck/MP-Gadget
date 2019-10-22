@@ -130,6 +130,8 @@ void hydro_force(const ActiveParticles * act, ForceTree * tree)
     tw->tree = tree;
     tw->priv = priv;
 
+    if(!tree->hmax_computed_flag)
+        endrun(5, "Hydro called before hmax computed\n");
     /* Cache the pressure for speed*/
     HYDRA_GET_PRIV(tw)->PressurePred = (double *) mymalloc("PressurePred", SlotsManager->info[0].size * sizeof(double));
 

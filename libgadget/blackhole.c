@@ -228,6 +228,8 @@ blackhole(const ActiveParticles * act, ForceTree * tree)
     MPIU_Barrier(MPI_COMM_WORLD);
     message(0, "Beginning black-hole accretion\n");
 
+    if(!tree->hmax_computed_flag)
+        endrun(5, "Black hole called before hmax computed\n");
     priv->N_sph_swallowed = priv->N_BH_swallowed = 0;
 
     /* Let's determine which particles may be swallowed and calculate total feedback weights */

@@ -351,7 +351,7 @@ void compute_accelerations(const ActiveParticles * act, int is_PM, PetaPM * pm, 
         density(act, 1, All.DensityIndependentSphOn, tree);  /* computes density, and pressure */
 
         /***** update smoothing lengths in tree *****/
-        force_update_hmax(act->ActiveParticle, act->NumActiveParticle, tree, ddecomp);
+        force_update_hmax(tree, ddecomp);
         /***** hydro forces *****/
         MPIU_Barrier(MPI_COMM_WORLD);
         message(0, "Start hydro-force computation...\n");
