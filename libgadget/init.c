@@ -247,7 +247,8 @@ setup_smoothinglengths(int RestartSnapNum, DomainDecomp * ddecomp)
         return;
 
     ForceTree Tree = {0};
-    force_tree_rebuild(&Tree, ddecomp, All.BoxSize, 0);
+    /* Need moments because we use them to set Hsml*/
+    force_tree_rebuild(&Tree, ddecomp, All.BoxSize, 0, 1);
 
     if(RestartSnapNum == -1)
     {

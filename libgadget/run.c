@@ -208,15 +208,16 @@ run(int RestartSnapNum)
          * If so we need to add them to the tree.*/
         int HybridNuGrav = All.HybridNeutrinosOn && All.Time <= All.HybridNuPartTime;
 
+        int pairwisestep = Act.NumActiveParticle < All.PairwiseActiveFraction * PartManager->NumPart;
+
         /* Need to rebuild the force tree because all TopLeaves are out of date.*/
         ForceTree Tree = {0};
-        force_tree_rebuild(&Tree, ddecomp, All.BoxSize, HybridNuGrav);
+        force_tree_rebuild(&Tree, ddecomp, All.BoxSize, HybridNuGrav, !pairwisestep && All.TreeGravOn);
 
         /*Allocate the extra SPH data for transient SPH particle properties.*/
         if(GasEnabled)
             slots_allocate_sph_scratch_data(sfr_need_to_compute_sph_grad_rho(), SlotsManager->info[0].size);
 
-        int pairwisestep = Act.NumActiveParticle < All.PairwiseActiveFraction * PartManager->NumPart;
         /* update force to Ti_Current */
         compute_accelerations(&Act, is_PM, &pm, pairwisestep, NumCurrentTiStep == 0, GasEnabled, HybridNuGrav, &Tree, ddecomp);
 
@@ -277,7 +278,7 @@ run(int RestartSnapNum)
             int compact[6] = {0};
 
             if(slots_gc(compact)) {
-                force_tree_rebuild(&Tree, ddecomp, All.BoxSize, HybridNuGrav);
+                force_tree_rebuild(&Tree, ddecomp, All.BoxSize, HybridNuGrav, 0);
                 Act.NumActiveParticle = PartManager->NumPart;
             }
         }
@@ -394,7 +395,7 @@ void compute_accelerations(const ActiveParticles * act, int is_PM, PetaPM * pm, 
         gravpm_force(pm, tree);
 
         /*Rebuild the force tree we freed in gravpm to save memory*/
-        force_tree_rebuild(tree, ddecomp, All.BoxSize, HybridNuGrav);
+        force_tree_rebuild(tree, ddecomp, All.BoxSize, HybridNuGrav, FirstStep && All.TreeGravOn);
 
         /* compute and output energy statistics if desired. */
         if(All.OutputEnergyDebug)
