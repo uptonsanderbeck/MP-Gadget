@@ -1105,7 +1105,9 @@ void force_update_hmax(ForceTree * tree, DomainDecomp * ddecomp)
     MPI_Comm_size(MPI_COMM_WORLD, &NTask);
     MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
 
-    /* We do this for all particles because hmax is not set during tree build any more.*/
+    /* We update the whole tree for all local particles here
+     * because hmax is not set during tree build any more.*/
+    #pragma omp parallel for
     for(i = 0; i < PartManager->NumPart; i++)
     {
         if(P[i].Type != 0)
@@ -1115,9 +1117,15 @@ void force_update_hmax(ForceTree * tree, DomainDecomp * ddecomp)
 
         while(no >= 0)
         {
-            if(P[i].Hsml <= tree->Nodes[no].u.d.hmax)
+            double hmax;
+            #pragma omp atomic capture
+            {
+                hmax = tree->Nodes[no].u.d.hmax;
+                tree->Nodes[no].u.d.hmax = (P[i].Hsml > tree->Nodes[no].u.d.hmax ? P[i].Hsml : tree->Nodes[no].u.d.hmax);
+            }
+
+            if(P[i].Hsml <= hmax)
                 break;
-            tree->Nodes[no].u.d.hmax = P[i].Hsml;
             no = tree->Nodes[no].father;
         }
     }
