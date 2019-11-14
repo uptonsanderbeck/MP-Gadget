@@ -11,17 +11,19 @@ import warnings
 
 
 if len(sys.argv) == 1:
-    print('No input parameters detected. Please provide at minimum: (1) QSO Spectral index (2) Thresshold long-mean-free-path photon energy in eV')
+    print('No input parameters detected. Please provide at minimum: (1) QSO Spectral index  (2) Clumping factor (3) Thresshold long-mean-free-path photon energy in eV. Suggested values- (1) 1.7 (2) 3. (3) 150.')
 
 alpha_q = float(sys.argv[1])
-Emax = float(sys.argv[2])
-if len(sys.argv) == 3:
+clumping_fac = float(sys.argv[2])
+Emax = float(sys.argv[3])
+if len(sys.argv) == 4:
     hist = 'quasar'
 else:    
-    hist = sys.argv[3]
+    hist = sys.argv[4]
 if (hist == 'linear'):
-    reion_z_i = float(sys.argv[4])
-    reion_z_f = float(sys.argv[5])
+    reion_z_i = float(sys.argv[5])
+    reion_z_f = float(sys.argv[6])
+    
 
    
 class HeIIheating(object):
@@ -179,7 +181,6 @@ class HeIIheating(object):
 
         print('Done!')
 
-
 class HeII_history(object):
     """Determines the HeII reionization history from a quasar emissivity function"""
     def __init__(self):
@@ -209,11 +210,11 @@ class HeII_history(object):
           
         
 
-    def dXHeIIIdz_int(self, xHeIII, redshift, clumping_fac = 2., T_est = 15000.):
+    def dXHeIIIdz_int(self, xHeIII, redshift, clumping_fac = clumping_fac, T_est = 15000.):
         """Sets up differential eq."""
         rn = RN.RateNetwork(redshift)
         HH = HeIIheating()
-        dXHeIIIdz = -(self.quasar_emissivity_Kulkarni19(redshift) - clumping_fac*rn.recomb.alphaHepp(T_est)*HH.ne(redshift, T_est)*xHeIII*HH.nHe(redshift))/HH.nHe(redshift)/(HH.H(redshift)*(1+redshift))
+        dXHeIIIdz = -(self.quasar_emissivity_Kulkarni19_21(redshift) - clumping_fac*rn.recomb.alphaHepp(T_est)*HH.ne(redshift, T_est)*xHeIII*HH.nHe(redshift))/HH.nHe(redshift)/(HH.H(redshift)*(1+redshift))
         return dXHeIIIdz
 
 
@@ -222,9 +223,9 @@ class HeII_history(object):
         """Makes a table of HeII reionization history: z, XHeIII, and number of ionizing photons per nHe produced."""
         dataarr = np.zeros([3,numz])
         dataarr[0,:] = np.linspace(zmax,zmin, numz)
-        x = scipy.integrate.odeint(self.dXHeIIIdz_int, np.zeros(numz), dataarr[0,:])
+        x = scipy.integrate.odeint(self.dXHeIIIdz_int, np.zeros(numz), dataarr[0,:], printmessg = False)
         dataarr[1,:] = [min(x[i,0], 1) for i in range(numz)]
-        dataarr[2,:] = scipy.integrate.odeint(self.dXHeIIIdz_int, np.zeros(numz), dataarr[0,:])[:,0]
+        dataarr[2,:] = scipy.integrate.odeint(self.dXHeIIIdz_int, np.zeros(numz), dataarr[0,:], printmessg = False)[:,0]
         return dataarr
 
 
@@ -252,13 +253,23 @@ class HeII_history(object):
         e = epsilon_nu/(self.h_erg_s*alpha_q)/(self.mpctocm**3)*4.**(-alpha_q)
         return e
         
-    def quasar_emissivity_Kulkarni19(self, redshift, alpha_q = alpha_q):
-        """Proper emissivity of HeII ionizing photons from Kulkarni + (2019)"""
-        epsilon_nu = 10.**(24.72)*(1.+redshift)**8.42 * np.exp(-2.1*redshift)/(np.exp(1.09*redshift)+38.56)  #erg s^-1 MPc^-3 Hz^-1
+    def quasar_emissivity_Kulkarni19_18(self, redshift, alpha_q = alpha_q):
+        """Proper emissivity of HeII ionizing photons from Kulkarni + (2019) with limiting magnitude -18"""
+        epsilon_nu1450 = 10.**(24.72)*(1.+redshift)**11.42 * np.exp(-2.1*redshift)/(np.exp(1.09*redshift)+38.56)  #erg s^-1 MPc^-3 Hz^-1
+        epsilon_nu = epsilon_nu1450*(912/1450)**0.61
         e = epsilon_nu/(self.h_erg_s*alpha_q)/(self.mpctocm**3)*4.**(-alpha_q)
         return e
 
-        
+    def quasar_emissivity_Kulkarni19_21(self, redshift, alpha_q = alpha_q):
+        """Proper emissivity of HeII ionizing photons from Kulkarni + (2019) with limiting magnitude -21"""
+        epsilon_nu1450 = 10.**(23.91)*(1.+redshift)**11.26 * np.exp(-1.3*redshift)/(np.exp(1.62*redshift)+13.6)  #erg s^-1 MPc^-3 Hz^-1
+        epsilon_nu = epsilon_nu1450*(912/1450)**0.61
+        e = epsilon_nu/(self.h_erg_s*alpha_q)/(self.mpctocm**3)*4.**(-alpha_q)
+        return e
+
+                
+        	    
+
         	    
 
 class linear_history(object):
